@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📋</text></svg>"
+    />
+    <title>Clipboard Logger Test Page</title>
+    <style>
+      :root {
+        --bg: #0f1216;
+        --panel: #171b21;
+        --border: #262c35;
+        --text: #d7dce2;
+        --dim: #7c8592;
+        --accent: #5fb3a3;
+        --accent-soft: #1c3733;
+        --danger: #d97757;
+        --danger-soft: #110f0f;
+        --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 14px;
+        line-height: 1.6;
+        padding: 32px 20px 80px;
+      }
+      .wrap {
+        max-width: 860px;
+        margin: 0 auto;
+      }
+      header {
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 18px;
+        margin-bottom: 28px;
+      }
+      header h1 {
+        font-size: 18px;
+        margin: 0 0 6px;
+        letter-spacing: 0.02em;
+      }
+      header p {
+        margin: 0;
+        color: var(--dim);
+        font-size: 13px;
+        max-width: 640px;
+      }
+      .status {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: var(--accent-soft);
+        color: var(--accent);
+        text-align: center;
+        padding: 9px 10px;
+        font-size: 12.5px;
+        border-bottom: 1px solid var(--accent);
+        transform: translateY(-100%);
+        transition: transform 0.18s ease;
+        z-index: 10;
+      }
+      .status.show {
+        transform: translateY(0);
+      }
+
+      section {
+        position: relative;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 18px 52px 18px 20px;
+        margin-bottom: 16px;
+      }
+      section h2 {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--dim);
+        margin: 0 0 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      section h2 .n {
+        color: var(--accent);
+        font-weight: normal;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+      .row:last-child {
+        margin-bottom: 0;
+      }
+      .content {
+        flex: 1;
+        min-width: 220px;
+        color: var(--text);
+      }
+      .content.small {
+        color: var(--dim);
+        font-size: 13px;
+      }
+      code,
+      pre {
+        font-family: var(--mono);
+      }
+      pre.codeblock {
+        background: #0c0f13;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 12px 14px;
+        margin: 0;
+        overflow-x: auto;
+        font-size: 12.5px;
+        color: #a8e0cf;
+        flex: 1;
+        min-width: 220px;
+      }
+      table {
+        border-collapse: collapse;
+        flex: 1;
+        min-width: 260px;
+        font-size: 13px;
+      }
+      table caption {
+        text-align: left;
+        color: var(--dim);
+        font-size: 11px;
+        margin-bottom: 6px;
+      }
+      th,
+      td {
+        border: 1px solid var(--border);
+        padding: 6px 10px;
+        text-align: left;
+      }
+      th {
+        background: #1c2129;
+        color: var(--dim);
+        font-weight: normal;
+      }
+      .sensitive-box {
+        position: relative;
+        background: var(--danger-soft);
+        border: 1px solid var(--danger);
+        border-radius: 4px;
+        padding: 10px 40px 10px 12px;
+        flex: 1;
+        min-width: 220px;
+      }
+      .sensitive-box .label {
+        color: var(--danger);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 4px;
+      }
+      .sensitive-box .value {
+        color: var(--text);
+      }
+      input[type="text"],
+      input[type="password"] {
+        background: #0c0f13;
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 6px 40px 6px 8px;
+        border-radius: 4px;
+        font-family: var(--mono);
+        font-size: 13px;
+        width: 100%;
+      }
+      .input-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 220px;
+      }
+      .input-wrap .copy-icon {
+        top: 50%;
+        right: 6px;
+        transform: translateY(-50%);
+        width: 26px;
+        height: 26px;
+      }
+      .input-wrap .copy-icon svg {
+        width: 13px;
+        height: 13px;
+      }
+      .input-wrap .copy-icon:active {
+        transform: translateY(-50%);
+      }
+
+      /* Double-copy button: plain copy icon, animation alone hints at "copied twice" */
+      .dup-icon svg {
+        transform-origin: center;
+      }
+      @keyframes dupPulse {
+        0% {
+          transform: scale(1);
+        }
+        14% {
+          transform: scale(0.72);
+        }
+        28% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1);
+        }
+        64% {
+          transform: scale(0.72);
+        }
+        78% {
+          transform: scale(1);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      .dup-icon.pulse-twice svg {
+        animation: dupPulse 0.6s ease;
+      }
+
+      /* Icon copy button - two intersecting squares, GitHub/Claude style */
+      .copy-icon {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 5px;
+        color: var(--dim);
+        cursor: pointer;
+        transition:
+          background 0.12s,
+          border-color 0.12s,
+          color 0.12s;
+      }
+      .copy-icon svg {
+        width: 15px;
+        height: 15px;
+      }
+      .copy-icon:hover {
+        background: #1c2129;
+        border-color: var(--border);
+        color: var(--accent);
+      }
+      .copy-icon:active {
+        transform: translateY(1px);
+      }
+      .copy-icon.danger:hover {
+        color: var(--danger);
+      }
+      .copy-icon.copied {
+        color: var(--accent);
+      }
+
+      .copy-icon.dup-icon {
+        top: 0;
+        right: 7px;
+      }
+
+      /* Icon button anchored inside a sensitive box instead of the section corner */
+      .sensitive-box .copy-icon {
+        top: 8px;
+        right: 8px;
+        width: 26px;
+        height: 26px;
+      }
+      .sensitive-box .copy-icon svg {
+        width: 13px;
+        height: 13px;
+      }
+
+      /* Icon button anchored inside a row when the section itself has multiple
+     independent copy targets (e.g. duplicate-check, input field) */
+      .row {
+        position: relative;
+      }
+      .row .copy-icon.inline {
+        position: static;
+        margin-left: auto;
+      }
+
+      .note {
+        color: var(--dim);
+        font-size: 12px;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed var(--border);
+      }
+      footer {
+        color: var(--dim);
+        font-size: 12px;
+        text-align: center;
+        margin-top: 30px;
+      }
+      .math {
+        font-size: 15px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="status" id="status">Copied</div>
+
+    <div class="wrap">
+      <header>
+        <h1>Clipboard Logger Test Page</h1>
+        <p>
+          Run <code>clipboard_history.exe</code>, then click each "Copy" button
+          below in order. Afterward, open the session's .txt file on your
+          Desktop and check that each entry landed the way you'd expect &mdash;
+          especially the "sensitive" section, which is copied as plain text with
+          no exclusion tag, so it <strong>should</strong> show up in the log
+          (that's the point: it proves you still need to be careful yourself).
+        </p>
+      </header>
+
+      <section>
+        <h2><span class="n">1</span> Single word</h2>
+        <div class="row">
+          <span class="content">Serendipity</span>
+        </div>
+        <button
+          class="copy-icon"
+          title="Copy"
+          onclick="handleCopy(this, 'Serendipity')"
+        ></button>
+      </section>
+
+      <section>
+        <h2><span class="n">2</span> Sentence</h2>
+        <div class="row">
+          <span class="content" id="sentence1"
+            >The quick brown fox jumps over the lazy dog near the riverbank at
+            dawn.</span
+          >
+        </div>
+        <button
+          class="copy-icon"
+          title="Copy"
+          onclick="
+            handleCopy(this, document.getElementById('sentence1').textContent)
+          "
+        ></button>
+      </section>
+
+      <section>
+        <h2><span class="n">3</span> Paragraph</h2>
+        <div class="row">
+          <p class="content" id="para1">
+            Clipboard managers exist because most workflows involve gathering
+            pieces of information from many different places before you can act
+            on any of them. Instead of switching back and forth between a source
+            and a destination document, a good clipboard history tool lets you
+            copy everything first, in whatever order it's convenient to find it,
+            and then assemble and format it all in one pass at the end.
+          </p>
+        </div>
+        <button
+          class="copy-icon"
+          title="Copy"
+          onclick="
+            handleCopy(this, document.getElementById('para1').textContent)
+          "
+        ></button>
+      </section>
+
+      <section>
+        <h2><span class="n">4</span> "Page" (multiple paragraphs)</h2>
+        <div class="row">
+          <div class="content" id="page1">
+            <p>
+              Section one. This simulates copying a larger block of content,
+              such as an entire page of notes, in a single selection rather than
+              one paragraph at a time.
+            </p>
+            <p>
+              Section two. It includes a line break and a second paragraph so
+              you can confirm that internal newlines survive the round trip
+              through the clipboard and into the log file without collapsing
+              into a single line.
+            </p>
+            <p>Section three. End of the simulated page.</p>
+          </div>
+        </div>
+        <button
+          class="copy-icon"
+          title="Copy"
+          onclick="handleCopy(this, document.getElementById('page1').innerText)"
+        ></button>
+      </section>
+
+      <section>
+        <h2><span class="n">5</span> Code block</h2>
+        <div class="row">
+          <pre class="codeblock" id="code1">
+function greet(name) {
+  const msg = `Hello, ${name}!`;
+  console.log(msg);
+  return msg;
+}</pre
+          >
+        </div>
+        <button
+          class="copy-icon"
+          title="Copy"
+          onclick="handleCopy(this, document.getElementById('code1').innerText)"
+        ></button>
+        <div class="note">
+          Checks that indentation and line breaks in code survive being logged.
+        </div>
+      </section>
+
+      <section>
+        <h2><span class="n">6</span> Math</h2>
+        <div class="row">
+          <span class="content math" id="math1"
+            >∫₀^∞ e^(&minus;x²) dx = √π / 2,&nbsp;&nbsp; E = mc²,&nbsp;&nbsp;
+            Σ(1/n²) = π²/6</span
+          >
+        </div>
+        <button
+          class="copy-icon"
+          title="Copy"
+          onclick="
+            handleCopy(this, document.getElementById('math1').textContent)
+          "
+        ></button>
+        <div class="note">
+          Checks how Unicode math symbols (∫ √ π Σ ² ₀) come through in the
+          plain-text log.
+        </div>
+      </section>
+
+      <section>
+        <h2><span class="n">7</span> Table</h2>
+        <div class="row">
+          <table id="table1">
+            <caption>
+              Quarterly revenue (USD, thousands)
+            </caption>
+            <thead>
+              <tr>
+                <th>Quarter</th>
+                <th>Revenue</th>
+                <th>Growth</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Q1</td>
+                <td>412</td>
+                <td>&mdash;</td>
+              </tr>
+              <tr>
+                <td>Q2</td>
+                <td>488</td>
+                <td>+18.4%</td>
+              </tr>
+              <tr>
+                <td>Q3</td>
+                <td>531</td>
+                <td>+8.8%</td>
+              </tr>
+              <tr>
+                <td>Q4</td>
+                <td>602</td>
+                <td>+13.4%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <button
+          class="copy-icon"
+          title="Copy"
+          onclick="copyTable('table1', this)"
+        ></button>
+        <div class="note">
+          Copied as tab-separated plain text (rows joined with newlines, cells
+          with tabs) &mdash; check whether the columns still line up / are
+          tab-delimited in the log.
+        </div>
+      </section>
+
+      <section>
+        <h2>
+          <span class="n">8</span> Sensitive &mdash; username &amp; password
+        </h2>
+        <div class="row">
+          <div class="sensitive-box">
+            <div class="label">Username</div>
+            <div class="value" id="user1">devon.marsh@example.com</div>
+            <button
+              class="copy-icon danger"
+              title="Copy"
+              onclick="
+                handleCopy(this, document.getElementById('user1').textContent)
+              "
+            ></button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="sensitive-box">
+            <div class="label">Password</div>
+            <div class="value" id="pass1">Tr0ub4dor&amp;3-Correct-Horse</div>
+            <button
+              class="copy-icon danger"
+              title="Copy"
+              onclick="
+                handleCopy(this, document.getElementById('pass1').textContent)
+              "
+            ></button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="sensitive-box">
+            <div class="label">API key</div>
+            <div class="value" id="key1">ABCDEFGHIJKLMNOPQRSTUVWXYZ</div>
+            <button
+              class="copy-icon danger"
+              title="Copy"
+              onclick="
+                handleCopy(this, document.getElementById('key1').textContent)
+              "
+            ></button>
+          </div>
+        </div>
+        <div class="note">
+          A regular web page has no way to attach Windows' "exclude from
+          clipboard history" tag to a copy &mdash; only native apps (password
+          managers, browser autofill, etc.) that specifically opt in can do
+          that. So these three
+          <em>will</em> show up in the .txt log just like anything else, in
+          plain text. That's expected, and it's exactly the scenario the README
+          warns about.
+        </div>
+      </section>
+
+      <section>
+        <h2><span class="n">9</span> Input field (live typing &rarr; copy)</h2>
+        <div class="row">
+          <div class="input-wrap">
+            <input
+              type="text"
+              id="typed1"
+              placeholder="Type something, then click the copy icon"
+            />
+            <button
+              class="copy-icon"
+              title="Copy"
+              onclick="
+                handleCopy(this, document.getElementById('typed1').value)
+              "
+            ></button>
+          </div>
+        </div>
+        <div class="note">
+          Simulates copying out of a form field rather than static page text.
+        </div>
+      </section>
+
+      <section>
+        <h2><span class="n">10</span> Duplicate check</h2>
+        <div class="row">
+          <span class="content" id="dup1">Copy me twice in a row.</span>
+          <button
+            class="copy-icon dup-icon"
+            id="dupBtn"
+            title="Copy twice (auto)"
+            onclick="handleDoubleCopy(this)"
+          ></button>
+        </div>
+        <div class="note">
+          This button fires two clipboard writes back-to-back on its own (watch
+          the icon pulse twice) &mdash; the logger should still only add
+          <em>one</em> entry to the log, since it skips consecutive duplicate
+          copies.
+        </div>
+      </section>
+
+      <footer>
+        Local test page &mdash; nothing here is sent anywhere. All copies happen
+        via the browser Clipboard API.
+      </footer>
+    </div>
+
+    <script>
+      // Two-square "copy" icon (GitHub/Claude style) and a checkmark shown briefly after a successful copy.
+      const ICON_COPY =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+      const ICON_CHECK =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+
+      function flashStatus(message, isError) {
+        const el = document.getElementById("status");
+        el.textContent = message;
+        el.style.background = isError
+          ? "var(--danger-soft)"
+          : "var(--accent-soft)";
+        el.style.color = isError ? "var(--danger)" : "var(--accent)";
+        el.style.borderBottomColor = isError
+          ? "var(--danger)"
+          : "var(--accent)";
+        el.classList.add("show");
+        clearTimeout(window.__statusTimer);
+        window.__statusTimer = setTimeout(
+          () => el.classList.remove("show"),
+          1100,
+        );
+      }
+
+      async function writeClipboard(text) {
+        await navigator.clipboard.writeText(text);
+      }
+
+      async function handleCopy(btn, getText) {
+        try {
+          const text = typeof getText === "function" ? getText() : getText;
+          await writeClipboard(text);
+          flashStatus("Copied to clipboard", false);
+          btn.innerHTML = ICON_CHECK;
+          btn.classList.add("copied");
+          clearTimeout(btn.__resetTimer);
+          btn.__resetTimer = setTimeout(() => {
+            btn.innerHTML = ICON_COPY;
+            btn.classList.remove("copied");
+          }, 1000);
+        } catch (err) {
+          flashStatus("Copy failed: " + err.message, true);
+        }
+      }
+
+      function wait(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+
+      // Fires two real clipboard writes back-to-back. The icon plays one
+      // "double pulse" animation timed to span both writes, so a single click
+      // visually reads as two quick copy actions, then settles into the usual
+      // checkmark once both are done.
+      async function handleDoubleCopy(btn) {
+        const text = document.getElementById("dup1").textContent;
+        btn.disabled = true;
+        btn.classList.add("pulse-twice");
+
+        try {
+          await writeClipboard(text);
+          await wait(300);
+          await writeClipboard(text);
+          await wait(300);
+
+          flashStatus("Copied twice (same text)", false);
+          btn.classList.remove("pulse-twice");
+          btn.innerHTML = ICON_CHECK;
+          btn.classList.add("copied");
+          clearTimeout(btn.__resetTimer);
+          btn.__resetTimer = setTimeout(() => {
+            btn.innerHTML = ICON_COPY;
+            btn.classList.remove("copied");
+          }, 1000);
+        } catch (err) {
+          btn.classList.remove("pulse-twice");
+          flashStatus("Copy failed: " + err.message, true);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      function copyTable(tableId, btn) {
+        const table = document.getElementById(tableId);
+        const rows = Array.from(table.querySelectorAll("tr"));
+        const text = rows
+          .map((row) =>
+            Array.from(row.querySelectorAll("th,td"))
+              .map((cell) => cell.textContent.trim())
+              .join("\t"),
+          )
+          .join("\n");
+        handleCopy(btn, text);
+      }
+
+      // Populate every icon button's inner SVG once the DOM is ready.
+      document.addEventListener("DOMContentLoaded", () => {
+        document.querySelectorAll(".copy-icon").forEach((btn) => {
+          btn.innerHTML = ICON_COPY;
+        });
+      });
+    </script>
+  </body>
+</html>
